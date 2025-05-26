@@ -24,16 +24,6 @@
         "plugins": ["@babel/plugin-syntax-top-level-await"] 
       }
     },
-    "globals": [                       
-      "WebSocket",
-      "b4a",
-      "global"
-    ],
-    "envs": [                            
-      "browser",
-      "es2020",
-      "node"
-    ],
     "rules": {
       "camelcase": "off"
     }
