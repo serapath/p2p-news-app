@@ -2,6 +2,14 @@
   "name": "p2p-news-app",
   "version": "0.0.1",
   "description": "A p2p-news-app worked via hypercore/hyperswarms stack",
+  "standardx": {
+    "ignore": [
+      "*-bundle.js",
+      "shim.js",
+      "bundle.js",
+      "docs/"
+    ]
+  },
   "eslintConfig": {
     "env": {
       "browser": true,
@@ -14,41 +22,64 @@
     },
     "rules": {
       "camelcase": "off",
-    "indent": ["error", 2]
+      "indent": [
+        "error",
+        2
+      ]
     }
   },
+  "bin": {
+    "p2p-news-app": "./lib/run.js"
+  },
   "scripts": {
-    "web": "budo web/page.js:bundle.js --live --open",
-    "build": "browserify web/page.js > bundle.js",
-    "relay": "node src/node_modules/relay/index.js",
-    "resetcli": "rm -rf ./storage*",
-    "peer": "bare src/node_modules/bare-peer/index.js",
+    "cli": "bare lib/run.js",
+    "web": "npm run web:ds & npm run web:system & npm run web:ui",
+    "web:ds": "budo lib/datashell.js:shim.js --live",
+    "web:system": "budo lib/websys-ui.js:system.js --live",
+    "web:ui": "budo lib/webapp-ui.js:bundle.js --live --open",
+    "build": "npm run build:ds & npm run build:system & npm run build:ui",
+    "build:ds": "browserify lib/datashell.js > shim.js",
+    "build:system": "browserify lib/websys-ui.js > system.js",
+    "build:ui": "browserify lib/webapp-ui.js > bundle.js",
+    "relay": "node lib/node_modules/relay/index.js",
+    "resetcli": "rm -rf ./storage* && rm -rf ./.local-storage",
     "lint": "standardx",
     "lintfix": "standardx --fix",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "web:news": "budo web/page.js:web/bundle.js --dir . --live --open -- -i STATE",
+    "build:news": "browserify web/page.js -i STATE -o web/bundle.js"
   },
-  "bin": {
-    "native-peer": "./bin/cli.js"
-  },
+  "keywords": [
+    "p2p",
+    "blog",
+    "hypercore",
+    "datashell"
+  ],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
+    "@geut/sodium-javascript-plus": "^0.0.6",
     "@hyperswarm/dht-relay": "^0.4.3",
+    "@hyperswarm/testnet": "^3.1.4",
     "autobase": "^6.5.13",
     "b4a": "^1.6.7",
     "bare-crypto": "^1.4.5",
     "bare-fs": "^4.1.6",
     "bare-path": "^3.0.0",
     "bare-process": "^4.2.1",
-    "bip39": "^3.1.0",
     "bip39-mnemonic": "^2.4.0",
+    "blind-pairing": "^2.3.1",
+    "blind-pairing-core": "^2.9.0",
     "corestore": "^6.18.4",
+    "graph-explorer": "github:ddroid/graph-explorer",
     "hyper-webrtc": "^1.0.0",
     "hypercore-crypto": "^3.6.1",
     "hyperdrive": "^11.13.4",
     "hyperswarm": "^4.8.4",
-    "keet-identity-key": "^3.1.0",
+    "random-access-memory": "^6.2.1",
     "random-access-web": "^2.0.3",
     "sodium-javascript": "^0.8.0",
-    "sodium-universal": "^4.0.1",
+    "sodium-universal": "^5.0.1",
     "ws": "^8.18.1"
   },
   "devDependencies": {
