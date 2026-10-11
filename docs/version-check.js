@@ -9,7 +9,7 @@ const RAM = require('random-access-memory')
 const Hyperdrive = require('hyperdrive')
 const MirrorDrive = require('mirror-drive')
 const b4a = require('b4a')
-const { create_autodrive } = require('../lib/node_modules/autodrive')
+const { create_autodisk } = require('../lib/node_modules/autodisk')
 
 const results = []
 
@@ -18,7 +18,7 @@ main().then(print_results, on_crash)
 async function main () {
   await check_hyperdrive()
   await check_storage()
-  await check_autodrive()
+  await check_autodisk()
 }
 
 /***************************************
@@ -73,14 +73,14 @@ async function check_storage () {
 
 /***************************************
 AUTODRIVE
-serapath wants packs to be autodrives (multi device)
+serapath wants packs to be autodisks (multi device)
 ***************************************/
-async function check_autodrive () {
+async function check_autodisk () {
   const store_a = new Corestore(RAM)
   const store_b = new Corestore(RAM)
-  const drive_a = create_autodrive({ store: store_a.namespace('pack') })
+  const drive_a = create_autodisk({ store: store_a.namespace('pack') })
   await drive_a.ready()
-  const drive_b = create_autodrive({ store: store_b.namespace('pack'), bootstrap: drive_a.base.key })
+  const drive_b = create_autodisk({ store: store_b.namespace('pack'), bootstrap: drive_a.base.key })
   await drive_b.ready()
   replicate(store_a, store_b)
   await drive_a.add_writer(drive_b.base.local.key)
@@ -88,27 +88,27 @@ async function check_autodrive () {
   await settle(drive_a, drive_b)
   await drive_b.put('/b.txt', b4a.from('from b'))
   await settle(drive_a, drive_b)
-  check({ name: 'autodrive: second device can write after add_writer', ok: b4a.toString(await drive_a.get('/b.txt') || '') === 'from b' })
+  check({ name: 'autodisk: second device can write after add_writer', ok: b4a.toString(await drive_a.get('/b.txt') || '') === 'from b' })
   const view_a = drive_a.base.view.drive
   const view_b = drive_b.base.view.drive
-  check({ name: 'autodrive: files view has the same key on both devices', ok: b4a.equals(view_a.key, view_b.key), note: `a ${view_a.id.slice(0, 8)}, b ${view_b.id.slice(0, 8)}` })
+  check({ name: 'autodisk: files view has the same key on both devices', ok: b4a.equals(view_a.key, view_b.key), note: `a ${view_a.id.slice(0, 8)}, b ${view_b.id.slice(0, 8)}` })
   // autobase views only have a tree hash on their signed core
   const signed_a = view_a.core.getBackingCore().session
   const signed_b = view_b.core.getBackingCore().session
   const length = Math.min(signed_a.length, signed_b.length)
   const hash_a = b4a.toString(await signed_a.treeHash(length), 'hex')
   const hash_b = b4a.toString(await signed_b.treeHash(length), 'hex')
-  check({ name: 'autodrive: same hash on both devices, so one dat:// link works everywhere', ok: length > 0 && hash_a === hash_b, note: `length ${length}` })
+  check({ name: 'autodisk: same hash on both devices, so one dat:// link works everywhere', ok: length > 0 && hash_a === hash_b, note: `length ${length}` })
   const pinned = view_a.checkout(view_a.version)
   await pinned.ready()
-  check({ name: 'autodrive: checkout of the files view works on one device', ok: b4a.toString(await pinned.get('/main.js') || '') === 'from a' })
+  check({ name: 'autodisk: checkout of the files view works on one device', ok: b4a.toString(await pinned.get('/main.js') || '') === 'from a' })
   await pinned.close()
-  check({ name: 'autodrive: has entry() itself', ok: typeof drive_a.entry === 'function' })
+  check({ name: 'autodisk: has entry() itself', ok: typeof drive_a.entry === 'function' })
   const source = new Hyperdrive(store_a.namespace('source'))
   await source.ready()
   await source.put('/c.txt', b4a.from('copied'))
   const error = await mirror_error(source, drive_b)
-  check({ name: 'mirror-drive: copy a normal drive into an autodrive', ok: !error, note: error })
+  check({ name: 'mirror-drive: copy a normal drive into an autodisk', ok: !error, note: error })
   await drive_a.close()
   await drive_b.close()
 }
