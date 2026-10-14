@@ -83,6 +83,50 @@ The native peer will also join the same topic, and you will see diffrent option 
 If you want to see the flow of the code and how everything was made step by step check out the dev diary and for quick go through, check [code_explanation](https://github.com/af44n/p2p-news-app/blob/main/docs/code_explanation.md)
 
 
+# Protocol Architecture Trust Model
+
+what u can rely on in the vault and in disks, and why. the details are in [docs/autobase.md](docs/autobase.md) (how autobase works) and [docs/disks.md](docs/disks.md) (our disks and pinned links), and every claim there links to a check in `docs/` you can run, the results are in [docs/autobase-checks.md](docs/autobase-checks.md). all of it is on autobase 6.5.13, hypercore 10.38.2 and corestore 6.18.4
+
+## one identity, many devices
+
+your vault (the vault bee and the audit log) and every disk are autobases. each device writes only to its own core, and every device puts all entries in the same order and builds the same views from them. a new device can only write once an existing one adds it, and pairing adds every device as an indexer
+
+<details><summary>eli5</summary>
+
+every device keeps its own diary, and everyone copies all diaries into one shared notebook in the same order. only the devices already in the group can let a new one write in it
+
+</details>
+
+## what makes it final
+
+a view is only final where more than half of the indexers signed it together. no device has a key to write or cut a view alone, so a signed part can never be rewritten, its fork stays 0 ([docs/fork-check.js](docs/fork-check.js)). when the indexers change the views get new keys, but they start with the old data and the hashes of old versions stay the same, only the autobase key stays forever ([docs/view-history-check.js](docs/view-history-check.js))
+
+<details><summary>eli5</summary>
+
+a page in the notebook only counts once most of the group stamped it, and nobody has an eraser for stamped pages. if the group changes, they start a new notebook that begins with a copy of the old pages
+
+</details>
+
+## pinned links
+
+a pack name always means the latest files. a pinned link `dat://<length>.<fork>.<autobase key>.<hash>` means exactly the files at that version, the hash proves it, and it keeps working after the indexers change, on every device ([docs/pin-check.js](docs/pin-check.js)). the file bytes are pinned through the file list, thats from the code, not tested against an indexer that signs something wrong
+
+<details><summary>eli5</summary>
+
+"page 2 of group X's notebook, and page 2 looks exactly like this". if someone shows u a different page 2, it doesnt match
+
+</details>
+
+## what u cant rely on yet
+
+- **the newest entries.** whatever isnt signed yet can still be reordered, a device can even think its an indexer before thats signed ([docs/indexer-offline-check.js](docs/indexer-offline-check.js))
+- **2 devices with one gone.** both have to sign, so with one offline nothing new gets final, and even a 3rd device cant be added till it is back. the newest entries can also stay unsigned while both are online ([docs/pin-hang-check.js](docs/pin-hang-check.js))
+- **a removed device.** it only wipes its data if it sees its own removal and runs our code. a changed client keeps whatever it already had
+- **privacy.** nothing is encrypted yet, anyone who gets the keys can read the vault and the disks
+- **who continues a disk.** anyone can make a core that starts with the same data, only the autobase key and its indexers say which one is real. true forks arent supported yet
+- **recovery.** what happens when devices are lost for good (mnemonic recovery) isnt defined yet
+
+
 If you want to learn or collab.. Please dm me on discord. my username is `trulynotafan`
 
 
