@@ -10,7 +10,7 @@ const os = require('bare-os')
 const path = require('bare-path')
 const Corestore = require('corestore')
 const b4a = require('b4a')
-const { create_autodisk } = require('../lib/node_modules/autodisk')
+const autodisk = require('../lib/node_modules/autodisk')
 
 const LIMIT = 30000
 const results = []
@@ -20,9 +20,9 @@ async function main () {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pin-hang-check-'))
   const store_a = new Corestore(path.join(dir, 'a'))
   const store_b = new Corestore(path.join(dir, 'b'))
-  const a = create_autodisk({ store: store_a.namespace('pack') })
+  const a = autodisk({ store: store_a.namespace('pack') })
   await a.ready()
-  const b = create_autodisk({ store: store_b.namespace('pack'), bootstrap: a.base.key })
+  const b = autodisk({ store: store_b.namespace('pack'), bootstrap: a.base.key })
   await b.ready()
   const streams = connect(store_a, store_b)
   // 1.

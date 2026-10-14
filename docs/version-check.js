@@ -9,7 +9,7 @@ const RAM = require('random-access-memory')
 const Hyperdrive = require('hyperdrive')
 const MirrorDrive = require('mirror-drive')
 const b4a = require('b4a')
-const { create_autodisk } = require('../lib/node_modules/autodisk')
+const autodisk = require('../lib/node_modules/autodisk')
 
 const results = []
 
@@ -78,9 +78,9 @@ serapath wants packs to be autodisks (multi device)
 async function check_autodisk () {
   const store_a = new Corestore(RAM)
   const store_b = new Corestore(RAM)
-  const drive_a = create_autodisk({ store: store_a.namespace('pack') })
+  const drive_a = autodisk({ store: store_a.namespace('pack') })
   await drive_a.ready()
-  const drive_b = create_autodisk({ store: store_b.namespace('pack'), bootstrap: drive_a.base.key })
+  const drive_b = autodisk({ store: store_b.namespace('pack'), bootstrap: drive_a.base.key })
   await drive_b.ready()
   replicate(store_a, store_b)
   await drive_a.add_writer(drive_b.base.local.key)
