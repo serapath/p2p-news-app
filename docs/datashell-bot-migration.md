@@ -4,6 +4,8 @@ folow up to `docs/datashell-vault-records.md`. so u wanted the exact steps for m
 
 nothing here is implmented yet. i did test some stuff on plain autobase 6.5.13 (what we're on) with a few small scripts, i marked those **tested**. rest is just proposal.
 
+like u said it builds on 2 sub docs, the sleep module ([sleep-watch](../lib/node_modules/sleep-watch/README.md)) and the mnemonic recovery doc (not written yet)
+
 ## what we know already
 
 - **tested**: pairing makes every device an indexer of the vault (`vault_bee.add_writer()` defaults to `is_indexer = true`). an entry only gets signed (indexed) when a majortiy of indexers signed it, so with 2 devices u need both
@@ -19,7 +21,7 @@ nothing here is implmented yet. i did test some stuff on plain autobase 6.5.13 (
 
 1. **the box is state, moves are commands.** `bots/by-disk/<id> = { pin, box }` says which device runs it. changing that only happens through commands apended to a command log view (defined in `open`), like u said
 2. **apply checks who sent a command.** `node.from.key` has to be a device thats allowed to send that command, if not apply just skips it
-3. **only act on signed state.** a device only starts or hands off a bot if the commands are below `indexedLength`. unsigned stuff can still move around or dissapear, saw that happen in the stolen device test
+3. **only act on signed state.** a device only starts or hands off a bot if the commands are signed (below the views `signedLength`). unsigned stuff can still move around or dissapear, saw that happen in the stolen device test
 4. **lease.** the box only keeps the bot running while it hears from the other devices. no ping for `T` and it stops the bot itself
 5. **dont start without checking first.** after a restart or wakeup a device doesnt just start the bot, it has to hear from the others first and see signed state that says its still the box
 
@@ -84,7 +86,7 @@ wifi down, vpn issues, lost somewhere but still on, or stolen and offline.
 laptop sleep or hibernate.
 - what happens: the process just stops and contiues later. after waking it can do something before any timer notices how much time passed
 - what we do: stop the bot before sleeping, see the sleep part below. on wake rule 5
-- left: forced sleeps that skip the lock, and which clock we measure `T` with. if its a clock that doesnt count sleep, the lease would never expire during a long sleep. havent tested that
+- left: on mac and windows nothing tells us before sleeping yet, there only the time jump after waking up does. and which clock we measure `T` with. if its a clock that doesnt count sleep, the lease would never expire during a long sleep. havent tested that
 
 ### 4. the box comes back with old state
 was offline for days, back/found again.
@@ -112,28 +114,29 @@ user moves the bot from two devices at the same time, or moves it right while a 
 
 ### **These are all the edge cases I could think of, perhaps i'll add more as we go.**
 ## laptop sleep
-already explained on discord;
-i checked bares `suspend` (bare 1.34.1):
-- i think its meant for mobile, the app that embeds bare calls `Bare.suspend()` when it goes to the background. on the cli nothing calls it, pausing the process (`SIGTSTP`, `SIGSTOP`/`SIGCONT`) fired no event
-- `Bare.suspend()` doesnt stop anything by itself, timers kept running. it emits `suspend`, the app stops its own work, then `idle` and bare keeps the process alive. `Bare.resume()` lets it go again
+this is the [sleep-watch](../lib/node_modules/sleep-watch/README.md) module now. after waking up it notices on every platform that the time jumped (`on_sleep`), and on linux logind tells it right before sleeping and waits till the bot is stopped (`before_sleep`, 5s max). both work with a real suspend. its readme has what it cant detect.
 
-
+bares own `suspend` / `resume` events are for apps that embed bare (mobile i think), on the cli nothing fires them.
 
 ### proposal
 
 - recovery is obv not implemented yet, so that
 - a new device can be added without the invite dance if its request is signed with the mnemonic key. ur idea uses optimistic writes for that, but those are in autobase 7 (`optimistic: true` + `host.ackWriter()`), our 6.5.13 doesnt have them. on 6.5.13 the new device could just send its key signed with the mnemonic key, then any of my devices thats online checks the signatrue and adds it. needs one of them online tho
-- for situation 6, maybe the mnemonic could also give an indexer key thats added as indexer right from the start. then its 2 devices + mnemonic = 3 indexers, so the device thats left plus one restored from the mnemonic are a majority and can sign the lost ones removal. kinda hacky but yeah
+- for situation 6 i had the idea of the mnemonic as an extra indexer, u said no, the mnemonic should only authorize devices (maybe one keypair signed by the mnemonic). so this goes into the recovery doc
 - moving bots belongs here too: after a recovery the bot is moved with a signed takeover command like in situation 2, never just started
 
 ## open questions
 
 1. u agreed on the lease, but we never picked the actual `T` and margin. also which clock to measure them with
+   - u said `T` and the rest are a policy per bot the user can change, the strictest one by default
 2. with 2 devices a lost box means the bot stays down until recovery. is that fine, or should wallet bots need 3 devices?
+   - depends on how mnemonic recovery works, so thats the recovery doc
 3. mnemonic as an extra indexer - mentioned this as a hacky idea, would love ur thoughts on this.
+   - u said no, see the proposal part
 4. should the ui show unsigned entries as "not confirmed yet"? with 2 devices our own posts are unsigned while the other one is off, so thats a bit weird too. 
 5. sleep on macos, windows, mobile and the browser
 6. what we do when B never gets the data A pinned
+   - u said fall back to the previous pin unless the newer one is signed by a majority, maybe ask the user. so a bot should update its pin regularly (at least on every restart) through a datashell api the bot code can call as often as it wants, then the previous pin is never far behind
 
 
 overall a lot of things to take care of, lets see how it goes. 
