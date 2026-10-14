@@ -86,6 +86,7 @@
     "bare-module": "7.0.1",
     "bare-path": "^3.0.0",
     "bare-process": "^4.2.1",
+    "bare-subprocess": "^6.2.2",
     "bip39-mnemonic": "^2.4.0",
     "blind-pairing": "^2.3.1",
     "blind-pairing-core": "^2.9.0",
