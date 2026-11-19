@@ -10,7 +10,12 @@ Also I have made a demo video which you guys can check that essentially explains
 
 # Usage
 
-For Web peers just go to my deployed [github_page](https://af44n.github.io/p2p-news-app/) and the hosted relay would work and let you join.
+We've added some cool stuff recently:
+- **Offline Mode:** If the relay crashes, the app just falls back to cached data.
+- **Device Management:** You can now give devices petnames, kick them out safely, and see which ones are dead.
+- **Top Bar:** A top bar that shows which profile you're logged in as.
+
+For Web peers there is my deployed [github_page](https://af44n.github.io/p2p-news-app/). The hosted relay it uses by default is down right now (and its url has no `wss://`), so add a running relay in the Relays tab of the system bar and set it as default, or run everything locally like below.
 
 But if you want to try it manually:
 
@@ -27,8 +32,8 @@ Clone the repository:
 
 e.g: `npm run relay`                                                  
 ```
-> p2p-news-app@0.0.1 relay
-> node src/node_modules/relay/index.js
+> p2p-news-app-workspace@0.0.1 relay
+> node lib/node_modules/relay/relay.js
 
 Relay running on ws://localhost:8080
 
@@ -45,7 +50,9 @@ e.g: `npm run build && npm run web`
 [0003] 2752ms     2.3MB (browserify)
 
 ```
-Now open the webpage, input your username to join the topic, have your friends join aswell and when two peers connect, you can subsribe to each other and exchange blogs, fully decentralized. 
+Now open the webpage, click Seed and enter your name (or Pair with an invite code from your other device), launch the app, have your friends join aswell and when two peers connect, you can subsribe to each other and exchange blogs, fully decentralized. 
+
+open `http://localhost:9966` (or https), not the `192.168.x.x` address budo prints, the vault storage (opfs) only works on a secure page. the vault runs in a SharedWorker so all tabs of the site share it, after a rebuild close every tab of the site once, a running SharedWorker keeps the old code
 
 **Screenshot**
 
@@ -55,21 +62,16 @@ Now open the webpage, input your username to join the topic, have your friends j
 
 ## Run native peer
 
-e.g: `npx native-peer --name somename`   
+e.g: `npm run cli` (runs `bare lib/run.js`, its data is kept in the folder you run it in)
 
 ```
- npx native-peer --name afaan                                       [15:56:26]
-[peer-afaan] start
-[peer-afaan] { peerkey: '6e2b26fabdf50698182e2339925e696e1e6166980fa0bc6ad4103eeb7a555292' }
-[peer-afaan] ✅ Successfully created a new core with the key
-[peer-afaan] { corekey: '748b6027047f111ff07d403a0746e43f34d00df061564e4ad8f6af74d897b222' }
-[peer-afaan] Joining swarm
-Swarm Joined, looking for peers
-Native peer CLI started successfully.
-
-
+=== System Authentication ===
+1. Seed   (create new account)
+2. Pair   (join with invite code)
+3. Load   (restore from mnemonic)
+4. Reset All Data
 ```
-The native peer will also join the same topic, and you will see diffrent option to subsribe to other online peers (web or CLI) and append data or replicate.
+After Seed (or Pair) you get the system menu (launch app, devices, invite code, vault log, reset). The news app on the cli joins the same topic as the web peers, so you can post, see other peers blogs (web or CLI), subscribe to them and see your profile. The screenshot below is from an older version of the cli.
 
 **Screenshot**
 
@@ -78,5 +80,50 @@ The native peer will also join the same topic, and you will see diffrent option 
 If you want to see the flow of the code and how everything was made step by step check out the dev diary and for quick go through, check [code_explanation](https://github.com/af44n/p2p-news-app/blob/main/docs/code_explanation.md)
 
 
+# Protocol Architecture Trust Model
+
+what u can rely on in the vault and in disks, and why. the details are in [docs/autobase.md](docs/autobase.md) (how autobase works) and [docs/disks.md](docs/disks.md) (our disks and pinned links), and every claim there links to a check in `docs/` you can run, the results are in [docs/autobase-checks.md](docs/autobase-checks.md). all of it is on autobase 6.5.13, hypercore 10.38.2 and corestore 6.18.4
+
+## one identity, many devices
+
+your vault (the vault bee and the audit log) and every disk are autobases. each device writes only to its own core, and every device puts all entries in the same order and builds the same views from them. a new device can only write once an existing one adds it, and pairing adds every device as an indexer
+
+<details><summary>eli5</summary>
+
+every device keeps its own diary, and everyone copies all diaries into one shared notebook in the same order. only the devices already in the group can let a new one write in it
+
+</details>
+
+## what makes it final
+
+a view is only final where more than half of the indexers signed it together. no device has a key to write or cut a view alone, so a signed part can never be rewritten, its fork stays 0 ([docs/fork-check.js](docs/fork-check.js)). when the indexers change the views get new keys, but they start with the old data and the hashes of old versions stay the same, only the autobase key stays forever ([docs/view-history-check.js](docs/view-history-check.js))
+
+<details><summary>eli5</summary>
+
+a page in the notebook only counts once most of the group stamped it, and nobody has an eraser for stamped pages. if the group changes, they start a new notebook that begins with a copy of the old pages
+
+</details>
+
+## pinned links
+
+a pack name always means the latest files. a pinned link `dat://<length>.<fork>.<autobase key>.<hash>` means exactly the files at that version, the hash proves it, and it keeps working after the indexers change, on every device ([docs/pin-check.js](docs/pin-check.js)). the file bytes are pinned through the file list, thats from the code, not tested against an indexer that signs something wrong
+
+<details><summary>eli5</summary>
+
+"page 2 of group X's notebook, and page 2 looks exactly like this". if someone shows u a different page 2, it doesnt match
+
+</details>
+
+## what u cant rely on yet
+
+- **the newest entries.** whatever isnt signed yet can still be reordered, a device can even think its an indexer before thats signed ([docs/indexer-offline-check.js](docs/indexer-offline-check.js))
+- **2 devices with one gone.** both have to sign, so with one offline nothing new gets final, and even a 3rd device cant be added till it is back. the newest entries can also stay unsigned while both are online ([docs/pin-hang-check.js](docs/pin-hang-check.js))
+- **a removed device.** it only wipes its data if it sees its own removal and runs our code. a changed client keeps whatever it already had
+- **privacy.** nothing is encrypted yet, anyone who gets the keys can read the vault and the disks
+- **who continues a disk.** anyone can make a core that starts with the same data, only the autobase key and its indexers say which one is real. true forks arent supported yet
+- **recovery.** what happens when devices are lost for good (mnemonic recovery) isnt defined yet
+
+
+If you want to learn or collab.. Please dm me on discord. my username is `trulynotafan`
 
 
